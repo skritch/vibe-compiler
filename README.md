@@ -1,5 +1,12 @@
+# Vibe-Compiler
+
+
+```
+uv run python -m test_compile
+```
 
 
 
-
-uv run python -c "from src.llm import LLM; print(LLM.from_env().chat('Hello, how are you?'))"
+```
+uv tool run ruff check --fix
+```

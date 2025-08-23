@@ -1,6 +1,5 @@
 
 
 for each neighborhood on https://www.forsythrealty.com/neighborhoods
-  look it up on maps or something
-  extract the approximate lat/lon of the neighborhood center
+  look it up on maps or something and extract the approximate lat/lon of the neighborhood center
 combine the results into a csv
