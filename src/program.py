@@ -15,11 +15,14 @@ class Command:
 class Map:
     dimension: Command
     body: "Program"
+    reduce: "Reduce | None"
 
     def __str__(self) -> str:
         # Indent the body content properly
         body_str = str(self.body).replace("\n", "\n  ")
-        return f"Map(\n  dimension: {self.dimension}\n  body: {body_str}\n)"
+        reduce_str = f"  reduce: {str(self.reduce).replace('\n', '\n  ') if self.reduce else ''} \n"
+        s = f"Map(\n  dimension: {self.dimension}\n  body: {body_str} \n{reduce_str})"
+        return s
 
 
 @dataclass
@@ -30,7 +33,7 @@ class Reduce:
         return f"Reduce('{self.prompt}')"
 
 
-Statement = Map | Reduce | Command
+Statement = Map | Command
 
 
 @dataclass

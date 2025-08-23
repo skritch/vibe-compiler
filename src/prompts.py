@@ -8,6 +8,7 @@ The AST has three main statement types:
 1. **Map** - Represents iteration/loops over data (e.g., "for each item", "iterate over", "process all")
    - Contains a dimension command that defines what to iterate over
    - Contains a body program with statements to execute for each item
+   - Should ONLY contain lines that pertain to the data being looped over. Anything after this becomes a "reduce".
 
 2. **Reduce** - Represents aggregation/combination operations (e.g., "combine results", "merge into", "aggregate")
    - Contains a body program that defines how to combine the data
@@ -28,7 +29,7 @@ Line: {line}
 
 Classification rules:
 - "map" = loops/iteration (for each, iterate over, etc.)
-- "reduce" = combining/aggregating results (combine, merge, etc.)  
+- "reduce" = combining/aggregating results (combine, merge, etc.)
 - "command" = single action (extract, look up, etc.)
 
 Tool options:
@@ -36,10 +37,11 @@ Tool options:
 - "search": for general web search, finding information
 
 Return a JSON object with:
-- "type": the classification ("map", "reduce", or "command")  
+- "type": the classification ("map", "reduce", or "command")
 - "tools": array of tool names needed (can be empty for reduce statements)
 
-For map statements, the tools should be for the dimension command (what to iterate over).
+For map statements, the tools should be for the dimension command, which
+determines what to iterate over.
 """
 
 
@@ -64,8 +66,25 @@ You classified this line as "reduce" but there are no map operations to reduce:
 
 Line: {line}
 
-A reduce operation can only follow map operations. Since there are no active maps, 
+A reduce operation can only follow map operations. Since there are no active maps,
 this should be either a "map" (for iteration) or "command" (for a single action).
 
 Please reclassify this line correctly.
 """
+
+
+def list_prompt(prompt: str) -> str:
+    return f"{prompt}\n\nPlease respond with a JSON array of items to process."
+
+
+def map_context_prompt(item) -> str:
+    return f"""You're processing only a single branch of the above list. The current value is:
+
+{item}"""
+
+
+def map_results_prompt(branch_results: list[tuple]) -> str:
+    results_summary = "Here are the results of the previous instruction:\n"
+    for item, result in branch_results:
+        results_summary += f"{item}: {result}\n"
+    return results_summary

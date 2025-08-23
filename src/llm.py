@@ -1,15 +1,30 @@
 import os
-from urllib.parse import urljoin
 
 import requests
 
 from .tools import Tool
 
+# Global debug file handle
+_debug_file = None
+
+
+def set_debug_file(filename: str):
+    """Enable debug logging to a file."""
+    global _debug_file
+    _debug_file = open(filename, "w")
+
+
+def _log_debug(message: str):
+    """Log a message to the debug file if enabled."""
+    if _debug_file:
+        _debug_file.write(message + "\n")
+        _debug_file.flush()
+
 
 class LLM:
     def __init__(self, api_key, base_url: str, model: str | None):
         self.api_key = api_key
-        self.base_url = base_url.rstrip('/')
+        self.base_url = base_url.rstrip("/")
         self.model = model
 
     @classmethod
@@ -46,7 +61,7 @@ class LLM:
 
         if system_instruction:
             payload["system_instruction"] = {"parts": [{"text": system_instruction}]}
-
+        
         if tools:
             payload["tools"] = [t.body for t in tools]
 
@@ -55,6 +70,9 @@ class LLM:
                 "responseMimeType": "application/json",
                 "responseSchema": response_schema,
             }
+
+        _log_debug(f"USER: {message}")
+
         response = requests.post(
             f"{self.base_url}/{model}:generateContent",
             headers={
@@ -67,7 +85,14 @@ class LLM:
             print(response.text)
             response.raise_for_status()
 
-        return response.json()["candidates"][0]["content"]["parts"][0]["text"]
+        try:
+            result = response.json()["candidates"][0]["content"]["parts"][0]["text"]
+            # Log response if debug enabled
+            _log_debug(f"ASSISTANT: {result}")
+            return result
+        except:
+            print(response.json()["candidates"][0])
+            raise
 
     def converse(self, system_prompt: str, model: str | None = None):
         model = model or self.model

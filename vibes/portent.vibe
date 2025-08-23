@@ -1,0 +1,7 @@
+look up today's date
+look up the current phase of the moon
+for each sign of the zodiac:
+  generate a horoscope for today
+select the single most and single least auspicious of all the horoscopes
+find the prime factors of today's date in DDMMYY format
+then, use all this to divine a portent as to what major event will come to pass today
