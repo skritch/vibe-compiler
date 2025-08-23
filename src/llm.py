@@ -1,4 +1,5 @@
 import os
+from urllib.parse import urljoin
 
 import requests
 
@@ -6,24 +7,18 @@ from .tools import Tool
 
 
 class LLM:
-    def __init__(self, api_key: str, base_url: str | None, model: str | None):
+    def __init__(self, api_key, base_url: str, model: str | None):
         self.api_key = api_key
-        self.base_url = base_url
+        self.base_url = base_url.rstrip('/')
         self.model = model
 
     @classmethod
     def from_env(cls):
-        provider = os.environ.get("LLM_PROVIDER", "openai")
+        provider = os.environ["LLM_PROVIDER"]
 
         api_key = os.environ[f"{provider.upper()}_API_KEY"]
-        url = os.environ.get(f"{provider.upper()}_URL")
-        model = os.environ.get("LLM_MODEL")
-
-        if not url:
-            raise ValueError("No base URL configured")
-        if not api_key:
-            raise ValueError(f"Missing {provider.upper()}_API_KEY environment variable")
-
+        url = os.environ[f"{provider.upper()}_URL"]
+        model = os.environ.get(f"{provider.upper()}_MODEL")
         return cls(api_key, url, model)
 
     def chat(
@@ -60,7 +55,6 @@ class LLM:
                 "responseMimeType": "application/json",
                 "responseSchema": response_schema,
             }
-
         response = requests.post(
             f"{self.base_url}/{model}:generateContent",
             headers={
@@ -88,7 +82,7 @@ class Conversation:
         self.system_prompt = system_prompt
         self.contents: list[dict] = []
 
-    def chat(self, message: str, response_schema: dict | None = None):
+    def chat(self, message: str, **kwargs):
         # Add user message to contents
         self.contents.append({"role": "user", "parts": [{"text": message}]})
 
@@ -97,7 +91,7 @@ class Conversation:
             self.contents,
             system_instruction=self.system_prompt,
             model=self.model,
-            response_schema=response_schema,
+            **kwargs,
         )
 
         # Add assistant response to contents

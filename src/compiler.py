@@ -9,15 +9,15 @@ from src.schemas import CLASSIFICATION_SCHEMA
 
 def compile(vibe_file: str) -> Program:
     """
-    Compile a .vibe file into an AST Program.
+    Compile a vibe into an program.
 
     Algorithm:
     1. Read file line by line
     2. For each non-empty line:
        a. Ask LLM: "What type of statement is this? (map/reduce/command)"
-       b. Ask LLM: "Generate the AST node JSON for this line"
+       b. Generate the AST node JSON for the line.
        c. Parse JSON response into appropriate AST node
-    3. Return Program with all statements
+    3. Return Program of all top-level statements
     """
     llm = LLM.from_env()
     conversation = llm.converse(COMPILER_SYSTEM_PROMPT)
@@ -35,8 +35,7 @@ def compile(vibe_file: str) -> Program:
         non_empty_lines, 
         desc="Compiling lines", 
         unit="line", 
-        ncols=0,
-        bar_format="{desc}: {n_fmt}/{total_fmt}|{bar}|  [{elapsed}<{remaining}, {rate_fmt}]"
+        ncols=0
         ):
         # Step 1: Classify the line type and get tools in one call
 
@@ -65,7 +64,7 @@ def compile(vibe_file: str) -> Program:
             # If we're inside a map, add to its body, otherwise add to main statements
             if map_stack:
                 current_map = map_stack[-1]
-                current_map.body.statements.append(command)  # type: ignore
+                current_map.body.statements.append(command)
             else:
                 statements.append(command)
                 
