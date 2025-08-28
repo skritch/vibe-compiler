@@ -1,24 +1,25 @@
 import os
+import time
 
 import requests
 
 from .tools import Tool
 
 # Global debug file handle
-_debug_file = None
+_log_file = None
 
 
 def set_debug_file(filename: str):
     """Enable debug logging to a file."""
-    global _debug_file
-    _debug_file = open(filename, "w")
+    global _log_file
+    _log_file = open(filename, "w")
 
 
-def _log_debug(message: str):
+def _log(message: str):
     """Log a message to the debug file if enabled."""
-    if _debug_file:
-        _debug_file.write(message + "\n")
-        _debug_file.flush()
+    if _log_file:
+        _log_file.write(message + "\n")
+        _log_file.flush()
 
 
 class LLM:
@@ -33,7 +34,8 @@ class LLM:
 
         api_key = os.environ[f"{provider.upper()}_API_KEY"]
         url = os.environ[f"{provider.upper()}_URL"]
-        model = os.environ.get(f"{provider.upper()}_MODEL")
+        model = os.environ[f"{provider.upper()}_MODEL"]
+        print(f"Using model {model} from provider {provider}")
         return cls(api_key, url, model)
 
     def chat(
@@ -43,7 +45,7 @@ class LLM:
         tools: list[Tool] | None = None,
         model: str | None = None,
         response_schema: dict | None = None,
-    ):
+    ) -> str:
         """
         Chat request with Gemini's native format.
 
@@ -71,28 +73,58 @@ class LLM:
                 "responseSchema": response_schema,
             }
 
-        _log_debug(f"USER: {message}")
+        _log(f"USER: {message}")
 
-        response = requests.post(
-            f"{self.base_url}/{model}:generateContent",
-            headers={
-                "Content-Type": "application/json",
-                "x-goog-api-key": self.api_key,
-            },
-            json=payload,
-        )
-        if not response.ok:
-            print(response.text)
-            response.raise_for_status()
-
-        try:
-            result = response.json()["candidates"][0]["content"]["parts"][0]["text"]
-            # Log response if debug enabled
-            _log_debug(f"ASSISTANT: {result}")
-            return result
-        except:
-            print(response.json()["candidates"][0])
-            raise
+        # Retry logic with exponential backoff
+        max_retries = 5
+        base_delay = 1.0
+        
+        for attempt in range(max_retries + 1):
+            response = requests.post(
+                f"{self.base_url}/{model}:generateContent",
+                headers={
+                    "Content-Type": "application/json",
+                    "x-goog-api-key": self.api_key,
+                },
+                json=payload,
+            )
+            
+            if response.ok:
+                try:
+                    result = response.json()["candidates"][0]["content"]["parts"][0]["text"]
+                    # Log response if debug enabled
+                    _log(f"ASSISTANT: {result}")
+                    return result
+                except:
+                    print(response.json()["candidates"][0])
+                    raise
+            
+            # Handle rate limiting (429 errors)
+            if response.status_code == 429:
+                if attempt < max_retries:
+                    # Try to get retry delay from response
+                    retry_delay = base_delay
+                    try:
+                        error_data = response.json()
+                        # Look for RetryInfo in error details
+                        for detail in error_data.get("error", {}).get("details", []):
+                            if detail.get("@type") == "type.googleapis.com/google.rpc.RetryInfo":
+                                retry_delay_str = detail.get("retryDelay", "1s")
+                                # Parse delay like "7s"
+                                if retry_delay_str.endswith("s"):
+                                    retry_delay = float(retry_delay_str[:-1]) + 0.5
+                                break
+                    except:
+                        # Fall back to exponential backoff
+                        retry_delay = base_delay * (2 ** attempt)
+                    
+                    print(f"Rate limited. Retrying in {retry_delay:.1f}s... (attempt {attempt + 1}/{max_retries})")
+                    time.sleep(retry_delay)
+                    continue
+            
+        # For other errors or final attempt, raise the error
+        response.raise_for_status()
+        return response.text
 
     def converse(self, system_prompt: str, model: str | None = None):
         model = model or self.model
@@ -107,7 +139,7 @@ class Conversation:
         self.system_prompt = system_prompt
         self.contents: list[dict] = []
 
-    def chat(self, message: str, **kwargs):
+    def chat(self, message: str, **kwargs) -> str:
         # Add user message to contents
         self.contents.append({"role": "user", "parts": [{"text": message}]})
 

@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 """
 Vibe Compiler CLI
 
@@ -12,86 +12,96 @@ Arguments:
 
 import argparse
 import os
-import tempfile
 
 from src.compile import compile
 from src.llm import set_debug_file
-from src.run import run_vibe
+from src.program import Program
+from src.run import run_program, run_vibe
 
 
 def is_file_path(input_str: str) -> bool:
-    """Check if input string is a file path (contains . or /) vs inline script."""
-    return "." in input_str or "/" in input_str or "\\" in input_str
+    """Check if input string is a file path vs inline script."""
+    if input_str.endswith(('.vibe', '.vibec')):
+        return True
+    if os.path.exists(input_str):
+        return True
+    return False
 
 
-def parse_inline_script(script: str) -> str:
+def parse_inline_script(script: str) -> list[str]:
     """Convert semicolon-delimited script to multiline format."""
-    lines = [line.strip() for line in script.split(";") if line.strip()]
-    return "\n".join(lines)
+    return [line.strip() for line in script.split(";") if line.strip()]
 
 
-def compile_mode(input_arg: str):
+def compile_mode(input_arg: str, output_file: str | None = None):
     """Compile a vibe program and print the AST."""
     if is_file_path(input_arg):
         # Input is a file path
         if not os.path.exists(input_arg):
-            print(f"Error: File '{input_arg}' not found")
-            return 1
-
-        program = compile(input_arg)
-        print(f"Compiled '{input_arg}':")
-        print(program)
+            raise ValueError(f"Error: File '{input_arg}' not found")
+        
+        with open(input_arg) as f:
+            lines = f.readlines()
+        program = compile(lines)
+        output = program.model_dump_json(indent=2)
+        
+        if output_file:
+            with open(output_file, 'w') as f:
+                f.write(output)
+        else:
+            print(output)
     else:
         # Input is an inline script
-        script_content = parse_inline_script(input_arg)
-
-        # Create temporary file
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".vibe", delete=False) as f:
-            f.write(script_content)
-            temp_file = f.name
-
-        try:
-            program = compile(temp_file)
-            print("Compiled inline script:")
-            print(f"Script: {script_content}")
-            print("AST:")
-            print(program)
-        finally:
-            # Clean up temp file
-            os.unlink(temp_file)
+        lines = parse_inline_script(input_arg)
+        program = compile(lines)
+        output = program.model_dump_json(indent=2)
+        
+        if output_file:
+            with open(output_file, 'w') as f:
+                f.write(output)
+        else:
+            print(output)
 
     return 0
 
 
-def run_mode(input_arg: str):
+def run_mode(input_arg: str, compiled: bool = False, output_file: str | None = None):
     """Run a vibe program and print the result."""
     if is_file_path(input_arg):
-        # Input is a file path
         if not os.path.exists(input_arg):
-            print(f"Error: File '{input_arg}' not found")
-            return 1
+            raise ValueError(f"Error: File '{input_arg}' not found")
 
-        print(f"Running '{input_arg}'...")
-        result = run_vibe(input_arg)
-        print("Final result:")
-        print(result)
+        if compiled:
+            # Load compiled program from JSON file
+            with open(input_arg, 'r') as f:
+                json_content = f.read()
+            
+            # Parse JSON back to Program object using Pydantic
+            program = Program.model_validate_json(json_content)
+            result = run_program(program)
+        else:
+            with open(input_arg) as f:
+                lines = f.readlines()
+            result = run_vibe(lines)
+        
+        if output_file:
+            with open(output_file, 'w') as f:
+                f.write(result)
+        else:
+            print(result)
     else:
         # Input is an inline script
-        script_content = parse_inline_script(input_arg)
-
-        # Create temporary file
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".vibe", delete=False) as f:
-            f.write(script_content)
-            temp_file = f.name
-
-        try:
-            print(f"Running inline script: {script_content}")
-            result = run_vibe(temp_file)
-            print("Final result:")
+        lines = parse_inline_script(input_arg)
+        if compiled:
+            raise ValueError("Cannot use compiled mode (-c) with inline scripts")
+        
+        result = run_vibe(lines)
+        
+        if output_file:
+            with open(output_file, 'w') as f:
+                f.write(result)
+        else:
             print(result)
-        finally:
-            # Clean up temp file
-            os.unlink(temp_file)
 
     return 0
 
@@ -121,26 +131,39 @@ Examples:
     )
 
     parser.add_argument(
-        "--debug",
+        "-c", "--compiled",
         action="store_true",
-        help="Enable debug logging of all LLM messages to debug.log",
+        help="Run mode only: treat input as a compiled .vibec file (JSON format)"
+    )
+
+    parser.add_argument(
+        "-o", "--output",
+        help="Output file (defaults to stdout)"
+    )
+
+    parser.add_argument(
+        "--log",
+        help="Enable logging of all LLM messages the give file",
     )
 
     args = parser.parse_args()
 
     # Enable debug logging if requested
-    if args.debug:
-        set_debug_file("debug.log")
-        print("Debug logging enabled: writing to debug.log")
+    if args.log:
+        if not is_file_path(args.log):
+            raise ValueError(f"--log must be a file path")
+        set_debug_file(args.log)
+        print(f"Logging enabled: writing to {args.log}")
 
-    try:
-        if args.mode == "compile":
-            return compile_mode(args.input)
-        elif args.mode == "run":
-            return run_mode(args.input)
-    except Exception as e:
-        print(f"Error: {e}")
+    # Validate arguments
+    if args.compiled and args.mode != "run":
+        print("Error: -c/--compiled flag can only be used with 'run' mode")
         return 1
+
+    if args.mode == "compile":
+        return compile_mode(args.input, args.output)
+    elif args.mode == "run":
+        return run_mode(args.input, args.compiled, args.output)
 
 
 if __name__ == "__main__":

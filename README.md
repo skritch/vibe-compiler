@@ -46,7 +46,7 @@ Program([
 ])
 ```
 
-Running:
+Or run:
 ```
 uv run python cli.py run vibes/portent.vibe
 ```

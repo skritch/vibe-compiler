@@ -144,7 +144,7 @@ def _execute_map(map_stmt: Map, conversation: Conversation) -> str:
         return results_summary
 
 
-def run_vibe(vibe_file: str, llm: LLM | None = None) -> str:
+def run_vibe(lines: list[str], llm: LLM | None = None) -> str:
     """
     Compile and run a vibe file in one step.
 
@@ -155,6 +155,6 @@ def run_vibe(vibe_file: str, llm: LLM | None = None) -> str:
     Returns:
         Final execution result as a string
     """
-
-    program = compile(vibe_file)
+    
+    program = compile(lines)
     return run_program(program, llm)

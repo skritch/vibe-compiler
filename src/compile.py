@@ -7,13 +7,13 @@ from src.program import Command, Map, Program, Reduce, Statement
 from src.prompts import (
     COMPILER_SYSTEM_PROMPT,
     classification_prompt,
-    list_prompt,
+    require_json_list_prompt,
     retry_classification_prompt,
 )
 from src.schemas import CLASSIFICATION_SCHEMA
 
 
-def compile(vibe_file: str) -> Program:
+def compile(lines: list[str]) -> Program:
     """
     Compile a vibe into an program.
 
@@ -31,9 +31,6 @@ def compile(vibe_file: str) -> Program:
 
     statements: list[Statement] = []
     map_stack: list[Map] = []  # Stack to track nested map statements
-
-    with open(vibe_file) as f:
-        lines = f.readlines()
 
     # Filter out empty lines for progress tracking
     non_empty_lines = [
@@ -108,7 +105,7 @@ def compile(vibe_file: str) -> Program:
                         f"Failed to parse retry classification at line {line_num}: {e}"
                     )
             else:
-                # TODO: currently ever map has to have a reduce
+                # TODO: currently every map has to have a reduce
                 # if we want to nest maps without reducing the inner ones,
                 # we will have to do somethig truly silly.
 
@@ -128,15 +125,15 @@ def compile(vibe_file: str) -> Program:
         completed_map = map_stack.pop()
         statements.append(completed_map)
 
-    return Program(statements)
+    return Program(statements=statements)
 
 
 def _parse_map_line(line: str, tools: list[str]) -> Map:
     """Parse a map line into a Map AST node."""
     # Augment the prompt to request JSON list format
-    augmented_prompt = list_prompt(line)
+    augmented_prompt = require_json_list_prompt(line)
     dimension_command = Command(prompt=augmented_prompt, tools=tools)
-    return Map(dimension=dimension_command, body=Program([]), reduce=None)
+    return Map(dimension=dimension_command, body=Program(statements=[]), reduce=None)
 
 
 def _parse_reduce_line(line: str) -> Reduce:

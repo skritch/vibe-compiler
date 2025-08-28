@@ -73,7 +73,7 @@ Please reclassify this line correctly.
 """
 
 
-def list_prompt(prompt: str) -> str:
+def require_json_list_prompt(prompt: str) -> str:
     return f"{prompt}\n\nPlease respond with a JSON array of items to process."
 
 

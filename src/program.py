@@ -1,8 +1,8 @@
-from dataclasses import dataclass
+from typing import Union
+from pydantic import BaseModel
 
 
-@dataclass
-class Command:
+class Command(BaseModel):
     prompt: str
     tools: list[str]
 
@@ -11,11 +11,17 @@ class Command:
         return f"Command('{self.prompt}', tools=[{tools_str}])"
 
 
-@dataclass
-class Map:
+class Reduce(BaseModel):
+    prompt: str
+
+    def __str__(self) -> str:
+        return f"Reduce('{self.prompt}')"
+
+
+class Map(BaseModel):
     dimension: Command
     body: "Program"
-    reduce: "Reduce | None"
+    reduce: Reduce | None = None
 
     def __str__(self) -> str:
         # Indent the body content properly
@@ -25,19 +31,10 @@ class Map:
         return s
 
 
-@dataclass
-class Reduce:
-    prompt: str
-
-    def __str__(self) -> str:
-        return f"Reduce('{self.prompt}')"
+Statement = Union[Map, Command]
 
 
-Statement = Map | Command
-
-
-@dataclass
-class Program:
+class Program(BaseModel):
     statements: list[Statement]
 
     def __str__(self) -> str:
