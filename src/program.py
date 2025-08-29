@@ -1,8 +1,9 @@
-from typing import Union
-from pydantic import BaseModel
+from typing import Literal, Union
+from pydantic import BaseModel, model_serializer
 
 
 class Command(BaseModel):
+    node_type: Literal["Command"] = "Command"
     prompt: str
     tools: list[str]
 
@@ -11,23 +12,15 @@ class Command(BaseModel):
         return f"Command('{self.prompt}', tools=[{tools_str}])"
 
 
-class Reduce(BaseModel):
-    prompt: str
-
-    def __str__(self) -> str:
-        return f"Reduce('{self.prompt}')"
-
-
 class Map(BaseModel):
+    node_type: Literal["Map"] = "Map"
     dimension: Command
     body: "Program"
-    reduce: Reduce | None = None
 
     def __str__(self) -> str:
         # Indent the body content properly
         body_str = str(self.body).replace("\n", "\n  ")
-        reduce_str = f"  reduce: {str(self.reduce).replace('\n', '\n  ') if self.reduce else ''} \n"
-        s = f"Map(\n  dimension: {self.dimension}\n  body: {body_str} \n{reduce_str})"
+        s = f"Map(\n  dimension: {self.dimension}\n  body: {body_str})"
         return s
 
 

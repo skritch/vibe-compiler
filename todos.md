@@ -19,15 +19,24 @@ compatibility
 - add an openai provider. probably just use REST. test it somehow.
 - figure out if Gemini pro can handle json + functions, or w/e
 https://github.com/google-gemini/deprecated-generative-ai-python/issues/515#issuecomment-2304249426 is talking about
+- okay, we can get a json list by running a second query. I don't seem to have free Gemini access.
 
 
 features
 - support comments in JS or python format 
+- wrap the "for loop" prompt in a better prompt or something
+- A separate "fold" or "for" with ongoing state.
+  - Then we need to the compiler to be able to distinguish a Map (parallel, no state) from a For (state)
+  - This might require looking ahead at the whole program inside the map?
+- delimit "results" better.
+- possibility resume execution from a written-out conversation
 
+
+robustness
 - add some "error handling" (i.e. pester the AI to retry once. Possibly allow failures inside maps and just return the failed result.)
 - parallelize a little bit
-- delimit "results" better.
-- use a different/simpler model for compiling
+- I probably need to log retries and the like somewhere too
+- when running from .vibe, write the .vibec out as a checkpoint
 - Log between "running" and "compiling"
-- maybe remove "reduce" as a separate line you actually run. can just be "end map"
-- wrap the "for loop" prompt in a better prompt or something
+
+  

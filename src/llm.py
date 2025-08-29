@@ -9,16 +9,16 @@ from .tools import Tool
 _log_file = None
 
 
-def set_debug_file(filename: str):
+def set_log_file(filename: str):
     """Enable debug logging to a file."""
     global _log_file
     _log_file = open(filename, "w")
 
 
-def _log(message: str):
+def _log(role: str, payload: dict):
     """Log a message to the debug file if enabled."""
     if _log_file:
-        _log_file.write(message + "\n")
+        _log_file.write(f'{role}: {payload}\n')
         _log_file.flush()
 
 
@@ -50,6 +50,7 @@ class LLM:
         Chat request with Gemini's native format.
 
         TODO: use OpenAI model and do our own tool-calling.
+        TODO: log the tools in our requests somewhere.
         """
         model = model or self.model
         assert model
@@ -72,10 +73,12 @@ class LLM:
                 "responseMimeType": "application/json",
                 "responseSchema": response_schema,
             }
+        
 
-        _log(f"USER: {message}")
+        _log('USER', payload)
 
         # Retry logic with exponential backoff
+        # TODO: set these parameters somewhere.
         max_retries = 5
         base_delay = 1.0
         
@@ -92,8 +95,7 @@ class LLM:
             if response.ok:
                 try:
                     result = response.json()["candidates"][0]["content"]["parts"][0]["text"]
-                    # Log response if debug enabled
-                    _log(f"ASSISTANT: {result}")
+                    _log('ASSISTANT', result)
                     return result
                 except:
                     print(response.json()["candidates"][0])
@@ -123,8 +125,7 @@ class LLM:
                     continue
             
         # For other errors or final attempt, raise the error
-        response.raise_for_status()
-        return response.text
+        raise RuntimeError(response.json())
 
     def converse(self, system_prompt: str, model: str | None = None):
         model = model or self.model

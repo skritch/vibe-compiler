@@ -22,5 +22,8 @@ build/
 Thumbs.db
 
 # Local
-.ai/
-debug.log
+*.log
+
+
+**/.*/*
+!/.github/*

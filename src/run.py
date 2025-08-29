@@ -3,27 +3,14 @@ from copy import deepcopy
 
 from tqdm import tqdm
 
-from src.prompts import map_context_prompt, map_results_prompt
+from src.prompts import RUNNER_SYSTEM_PROMPT, map_context_prompt, map_results_prompt, retry_json_list_prompt
+from src.schemas import GENERIC_LIST_SCHEMA
 
 from .compile import compile
 from .llm import LLM, Conversation
 from .program import Command, Map, Program
 from .tools import URL, Search
 
-RUNNER_SYSTEM_PROMPT = """
-You are an expert runner of loosely-defined program-like procedures.
-Your job is to execute instructions exactly as requested without being smart or creative.
-
-Key principles:
-- Complete the task at hand exactly as specified
-- Do not add extra interpretation or creative enhancement
-- Follow instructions literally and precisely
-- When asked to extract or process data, return exactly what is requested
-- Do not elaborate beyond what is explicitly asked for
-- Be direct and task-focused in your responses
-
-You excel at following procedural instructions and completing data processing tasks with precision and reliability.
-""".strip()
 
 
 def run_program(program: Program, llm: LLM | None = None) -> str:
@@ -60,13 +47,8 @@ def _execute_program(program: Program, conversation: Conversation) -> str:
     for statement in program.statements:
         if isinstance(statement, Command):
             last_result = _execute_command(statement, conversation)
-
-        elif isinstance(statement, Map):
-            last_result = _execute_map(statement, conversation)
-
         else:
-            raise ValueError(f"Unknown statement type: {type(statement)}")
-
+            last_result = _execute_map(statement, conversation)
     return last_result
 
 
@@ -88,30 +70,52 @@ def _execute_command(command: Command, conversation: Conversation) -> str:
     return result
 
 
+def _parse_maybe_list(response: str) -> list | None:
+    # Parse the JSON response
+    first_bracket, last_bracket = response.index("["), response.rindex("]")
+
+    # TODO: if we can't just parse a list, call the LLM again with the list schema and the previous response, 
+    # but not the tool.
+    if (first_bracket is None) or (last_bracket is None):
+        return None
+
+    bracketed_part = response[first_bracket : last_bracket + 1]
+    try:
+        items = json.loads(bracketed_part)
+    except (json.JSONDecodeError, ValueError) as e:
+        return None
+    if isinstance(items, list):
+        return items
+    else:
+        return None
+    
+def retry_list(command: Command, response: str, conversation: Conversation):
+    # Or use the LLM directly without the conversation?
+    return conversation.chat(
+        retry_json_list_prompt(command.prompt, response),
+        response_schema=GENERIC_LIST_SCHEMA
+    )
+
 def _execute_map(map_stmt: Map, conversation: Conversation) -> str:
     """
     Execute a map statement with iteration over a list.
 
-    Adds a chat/response for the map statement, a summary of results,
-    and a chat/response for the reduce statement if one is given.
+    Adds a chat/response for the map statement and a summary of results.
     """
 
-    # Note: Gemini doesn't support a function + json list in the same command,
-    # Gemini Pro might actually? TODO.
+    # Note: Gemini doesn't support function calls + json response format in the chat.
     # so we don't bother and delegate to `_execute_command`. Other providers might.
+    # Gemini Pro might actually? TODO.
+
     list_response = _execute_command(map_stmt.dimension, conversation)
 
-    # Parse the JSON response
-    first_bracket, last_bracket = list_response.index("["), list_response.rindex("]")
-
-    if (first_bracket is None) or (last_bracket is None):
-        raise ValueError("Response was not a list")
-
-    bracketed_part = list_response[first_bracket : last_bracket + 1]
-    try:
-        items_list = json.loads(bracketed_part)
-    except (json.JSONDecodeError, ValueError) as e:
-        raise ValueError(f"Failed to parse list response: {e}")
+    # TODO: if we can't just parse a list, call the LLM again with the list schema and the previous response, 
+    # but not the tool.
+    items_list = _parse_maybe_list(list_response)
+    if items_list is None:
+        items_list = retry_list(map_stmt.dimension, list_response, conversation)
+        if not isinstance(items_list, list):
+            raise RuntimeError(f"Didn't receive a list for {map_stmt}")
 
     # Process each item in the list
     branch_results = []
@@ -135,13 +139,7 @@ def _execute_map(map_stmt: Map, conversation: Conversation) -> str:
 
     # Add the combined results to the original conversation
     conversation.contents.append({"role": "user", "parts": [{"text": results_summary}]})
-    # Execute the reduce operation if present
-    if map_stmt.reduce:
-        reduce_result = conversation.chat(map_stmt.reduce.prompt)
-        return reduce_result
-    else:
-        # If no reduce, return the summary
-        return results_summary
+    return results_summary
 
 
 def run_vibe(lines: list[str], llm: LLM | None = None) -> str:

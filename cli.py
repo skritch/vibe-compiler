@@ -14,7 +14,7 @@ import argparse
 import os
 
 from src.compile import compile
-from src.llm import set_debug_file
+from src.llm import set_log_file
 from src.program import Program
 from src.run import run_program, run_vibe
 
@@ -141,19 +141,17 @@ Examples:
         help="Output file (defaults to stdout)"
     )
 
-    parser.add_argument(
-        "--log",
-        help="Enable logging of all LLM messages the give file",
-    )
+    # parser.add_argument(
+    #     "--log",
+    #     action="store_true"
+    #     help="Logs the LLM conversation",
+    # )
 
     args = parser.parse_args()
 
     # Enable debug logging if requested
-    if args.log:
-        if not is_file_path(args.log):
-            raise ValueError(f"--log must be a file path")
-        set_debug_file(args.log)
-        print(f"Logging enabled: writing to {args.log}")
+    set_log_file("conversation.txt")
+    print(f"Logging enabled: writing to {"conversation.txt"}")
 
     # Validate arguments
     if args.compiled and args.mode != "run":
