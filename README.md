@@ -25,7 +25,7 @@ then, use all this to divine a portent as to what major event will come to pass 
 
 Compiling:
 ```
-uv run python cli.py compile vibes/portent.vibe
+uv run python cli.py compile vibes/portent.vibe --pretty
 
 Compiling lines: 100% 6/6 [00:11<00:00,  1.85s/line]
 Compiled 'vibes/portent.vibe':
@@ -33,21 +33,21 @@ Program([
   1. Command('look up today's date', tools=[search])
   2. Command('look up the current phase of the moon', tools=[search])
   3. Map(
-    dimension: Command('for each sign of the zodiac:
+    dimension: Command('Please generate a JSON array of the items to process from the following instruction:
   
-  Please respond with a JSON array of items to process.', tools=[search])
+  for each sign of the zodiac:', tools=[search])
     body: Program([
       1. Command('generate a horoscope for today', tools=[search])
-    ]) 
-    reduce: Reduce('select the single most and single least auspicious of all the horoscopes') 
+    ])
   )
-  4. Command('find the prime factors of today's date in DDMMYY format', tools=[search])
-  5. Command('then, use all this to divine a portent as to what major event will come to pass today', tools=[none])
+  4. Command('select the single most and single least auspicious of all the horoscopes')
+  5. Command('find the prime factors of today's date in DDMMYY format', tools=[search])
+  6. Command('then, use all this to divine a portent as to what major event will come to pass today', tools=[none])
 ])
 ```
 
 Or run:
 ```
-uv run python cli.py run vibes/portent.vibe
+uv run python cli.py run <input>
 ```
 

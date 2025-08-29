@@ -1,0 +1,47 @@
+{
+  "statements": [
+    {
+      "node_type": "Map",
+      "dimension": {
+        "node_type": "Command",
+        "prompt": "for each country in [\"France\", \"Germany\", \"Spain\", \"Italy\"]:\n\nPlease respond with a JSON array of items to process.",
+        "tools": []
+      },
+      "body": {
+        "statements": [
+          {
+            "node_type": "Map",
+            "dimension": {
+              "node_type": "Command",
+              "prompt": "for each major city in that country:\n\nPlease respond with a JSON array of items to process.",
+              "tools": []
+            },
+            "body": {
+              "statements": [
+                {
+                  "node_type": "Command",
+                  "prompt": "look up the current weather in that city",
+                  "tools": [
+                    "search"
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "node_type": "Command",
+            "prompt": "summarize the weather patterns for that country",
+            "tools": [
+              "search"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "node_type": "Command",
+      "prompt": "combine all country summaries into a European weather report",
+      "tools": []
+    }
+  ]
+}

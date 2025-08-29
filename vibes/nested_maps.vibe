@@ -1,0 +1,5 @@
+for each country in ["France", "Germany", "Spain", "Italy"]:
+  for each major city in that country:
+    look up the current weather in that city
+  summarize the weather patterns for that country
+combine all country summaries into a European weather report

@@ -1,15 +1,4 @@
 #!/usr/bin/env python
-"""
-Vibe Compiler CLI
-
-Usage:
-  python cli.py compile <file_or_script>
-  python cli.py run <file_or_script>
-
-Arguments:
-  file_or_script: Either a path to a .vibe file, or a semicolon-delimited script
-"""
-
 import argparse
 import os
 
@@ -27,13 +16,28 @@ def is_file_path(input_str: str) -> bool:
         return True
     return False
 
+def create_log_file(input_name: str | None, mode: str) -> str:
+    LOG_DIR = os.getenv('LOG_DIR', '.data/')
+    
+    if input_name:
+        # Remove extension and get base name
+        base_name = os.path.splitext(os.path.basename(input_name))[0]
+        filename = os.path.join(LOG_DIR, f"{base_name}-{mode}.txt")
+    else:
+        filename = os.path.join(LOG_DIR, f"{mode}.txt")
+    
+    # Ensure directory exists
+    os.makedirs(os.path.dirname(filename), exist_ok=True)
+    
+    set_log_file(filename)
+    return filename
 
 def parse_inline_script(script: str) -> list[str]:
     """Convert semicolon-delimited script to multiline format."""
     return [line.strip() for line in script.split(";") if line.strip()]
 
 
-def compile_mode(input_arg: str, output_file: str | None = None):
+def compile_mode(input_arg: str, pretty: bool = False):
     """Compile a vibe program and print the AST."""
     if is_file_path(input_arg):
         # Input is a file path
@@ -43,29 +47,21 @@ def compile_mode(input_arg: str, output_file: str | None = None):
         with open(input_arg) as f:
             lines = f.readlines()
         program = compile(lines)
-        output = program.model_dump_json(indent=2)
+        output = str(program) if pretty else program.model_dump_json(indent=2)
         
-        if output_file:
-            with open(output_file, 'w') as f:
-                f.write(output)
-        else:
-            print(output)
+        
     else:
         # Input is an inline script
         lines = parse_inline_script(input_arg)
         program = compile(lines)
-        output = program.model_dump_json(indent=2)
-        
-        if output_file:
-            with open(output_file, 'w') as f:
-                f.write(output)
-        else:
-            print(output)
-
-    return 0
+        output = str(program) if pretty else program.model_dump_json(indent=2)
+    
+    if pretty:
+        output = str(output)
+    return output
 
 
-def run_mode(input_arg: str, compiled: bool = False, output_file: str | None = None):
+def run_mode(input_arg: str, compiled: bool = False):
     """Run a vibe program and print the result."""
     if is_file_path(input_arg):
         if not os.path.exists(input_arg):
@@ -83,12 +79,6 @@ def run_mode(input_arg: str, compiled: bool = False, output_file: str | None = N
             with open(input_arg) as f:
                 lines = f.readlines()
             result = run_vibe(lines)
-        
-        if output_file:
-            with open(output_file, 'w') as f:
-                f.write(result)
-        else:
-            print(result)
     else:
         # Input is an inline script
         lines = parse_inline_script(input_arg)
@@ -97,13 +87,7 @@ def run_mode(input_arg: str, compiled: bool = False, output_file: str | None = N
         
         result = run_vibe(lines)
         
-        if output_file:
-            with open(output_file, 'w') as f:
-                f.write(result)
-        else:
-            print(result)
-
-    return 0
+    return result
 
 
 def main():
@@ -113,8 +97,9 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  python cli.py compile vibes/example.vibe
+  python cli.py compile vibes/example.vibe -o vibes/examples.vibec
   python cli.py run vibes/example.vibe
+  python cli.py run -c vibes/example.vibec
   python cli.py compile "for each item in list; process item; combine results"
   python cli.py run "for each item in list; process item; combine results"
         """,
@@ -141,28 +126,37 @@ Examples:
         help="Output file (defaults to stdout)"
     )
 
-    # parser.add_argument(
-    #     "--log",
-    #     action="store_true"
-    #     help="Logs the LLM conversation",
-    # )
+    parser.add_argument(
+        "--pretty",
+        action="store_true",
+        help="Compile mode only: output string representation instead of JSON"
+    )
 
     args = parser.parse_args()
 
     # Enable debug logging if requested
-    set_log_file("conversation.txt")
-    print(f"Logging enabled: writing to {"conversation.txt"}")
+    log_file = create_log_file(args.input, args.mode)
+    print(f"Logging conversation to {log_file}")
 
     # Validate arguments
     if args.compiled and args.mode != "run":
         print("Error: -c/--compiled flag can only be used with 'run' mode")
         return 1
+    
+    if args.pretty and args.mode != "compile":
+        print("Error: --pretty flag can only be used with 'compile' mode")
+        return 1
 
     if args.mode == "compile":
-        return compile_mode(args.input, args.output)
+        output = compile_mode(args.input, pretty=args.pretty)
     elif args.mode == "run":
-        return run_mode(args.input, args.compiled, args.output)
-
+        output = run_mode(args.input, args.compiled)
+    
+    if args.output:
+        with open(args.output, 'w') as f:
+            f.write(output)
+    else:
+        print(output)
 
 if __name__ == "__main__":
     exit(main())

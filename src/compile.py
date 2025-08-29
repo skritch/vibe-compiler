@@ -41,9 +41,7 @@ def advance(line: str, statements: list[Statement], map_stack: list[Map], conver
 
     if line_type == "EndMap":
         if map_stack:
-            # Finalize the open map and add it to statements.
-            completed_map = map_stack.pop()
-            statements.append(completed_map)
+            map_stack.pop()
             advance(line, statements, map_stack, conversation)
         else:
             # Try to correct the LLM's classification
@@ -54,10 +52,15 @@ def advance(line: str, statements: list[Statement], map_stack: list[Map], conver
             retry_data = json.loads(retry_response)
             line_type = retry_data["type"]
             tools = retry_data["tools"]
+
     # Step 2: Generate AST node based on type and handle nesting
     elif line_type == "Map":
         # Create new map and push to stack
         new_map = _parse_map_line(line, tools)
+        if map_stack:
+            map_stack[-1].body.statements.append(new_map)
+        else:
+            statements.append(new_map)
         map_stack.append(new_map)
 
     elif line_type == "Command":
@@ -65,8 +68,7 @@ def advance(line: str, statements: list[Statement], map_stack: list[Map], conver
 
         # If we're inside a map, add to its body, otherwise add to main statements
         if map_stack:
-            current_map = map_stack[-1]
-            current_map.body.statements.append(command)
+            map_stack[-1].body.statements.append(command)
         else:
             statements.append(command)
     else:
@@ -103,11 +105,6 @@ def compile(lines: list[str]) -> Program:
             advance(line, statements, map_stack, conversation)
         except Exception as e:
             raise ValueError(f"Failed to compile line {line_num}: '{line}'") from e
-        
-    # Finalize any remaining maps at end of file
-    while map_stack:
-        completed_map = map_stack.pop()
-        statements.append(completed_map)
 
     return Program(statements=statements)
 

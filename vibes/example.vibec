@@ -1,0 +1,30 @@
+{
+  "statements": [
+    {
+      "node_type": "Map",
+      "dimension": {
+        "node_type": "Command",
+        "prompt": "for each neighborhood on https://www.forsythrealty.com/neighborhoods\n\nPlease respond with a JSON array of items to process.",
+        "tools": [
+          "url_context"
+        ]
+      },
+      "body": {
+        "statements": [
+          {
+            "node_type": "Command",
+            "prompt": "look it up on maps or something and extract the approximate lat/lon of the neighborhood center",
+            "tools": [
+              "search"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "node_type": "Command",
+      "prompt": "combine the results into a csv",
+      "tools": []
+    }
+  ]
+}

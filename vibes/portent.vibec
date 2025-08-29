@@ -1,0 +1,54 @@
+{
+  "statements": [
+    {
+      "node_type": "Command",
+      "prompt": "look up today's date",
+      "tools": [
+        "search"
+      ]
+    },
+    {
+      "node_type": "Command",
+      "prompt": "look up the current phase of the moon",
+      "tools": [
+        "search"
+      ]
+    },
+    {
+      "node_type": "Map",
+      "dimension": {
+        "node_type": "Command",
+        "prompt": "for each sign of the zodiac:\n\nPlease respond with a JSON array of items to process.",
+        "tools": []
+      },
+      "body": {
+        "statements": [
+          {
+            "node_type": "Command",
+            "prompt": "generate a horoscope for today",
+            "tools": [
+              "search"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "node_type": "Command",
+      "prompt": "select the single most and single least auspicious of all the horoscopes",
+      "tools": []
+    },
+    {
+      "node_type": "Command",
+      "prompt": "find the prime factors of today's date in DDMMYY format",
+      "tools": [
+        "search"
+      ]
+    },
+    {
+      "node_type": "Command",
+      "prompt": "then, use all this to divine a portent as to what major event will come to pass today",
+      "tools": []
+    }
+  ]
+}

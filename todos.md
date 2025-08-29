@@ -12,6 +12,7 @@ speed
 correctness
 - test a nested map
 - add a unit test? lol
+- add test examples and expected compiled outputs
 
 
 compatibility
@@ -30,6 +31,13 @@ features
   - This might require looking ahead at the whole program inside the map?
 - delimit "results" better.
 - possibility resume execution from a written-out conversation
+- support uploading a file
+- support writing results to a file (instead of merely viewing in the conversation)
+
+Overall next step is: get organized about input/output files.
+- default output should be named like the input (vibe -> vibec, vibec -> txt)
+- should always write the whole conversation to .data/ or a log dir
+- print various retrying progress as we go
 
 
 robustness

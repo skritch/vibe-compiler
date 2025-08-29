@@ -95,7 +95,11 @@ Please reclassify this line correctly.
 
 
 def require_json_list_prompt(prompt: str) -> str:
-    return f"{prompt}\n\nPlease respond with a JSON array of items to process."
+    return f"""
+Please generate a JSON array of the items to process from the following instruction:
+
+{prompt}
+"""
 
 
 def retry_json_list_prompt(query: str, response: str):
