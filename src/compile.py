@@ -38,6 +38,7 @@ def advance(line: str, statements: list[Statement], map_stack: list[Map], conver
     classification_data = json.loads(classification_response)
     line_type = classification_data["type"]
     tools = classification_data["tools"]
+    files = classification_data.get("files", [])
 
     if line_type == "EndMap":
         if map_stack:
@@ -52,11 +53,12 @@ def advance(line: str, statements: list[Statement], map_stack: list[Map], conver
             retry_data = json.loads(retry_response)
             line_type = retry_data["type"]
             tools = retry_data["tools"]
+            files = retry_data.get("files", [])
 
     # Step 2: Generate AST node based on type and handle nesting
     elif line_type == "Map":
         # Create new map and push to stack
-        new_map = _parse_map_line(line, tools)
+        new_map = _parse_map_line(line, tools, files)
         if map_stack:
             map_stack[-1].body.statements.append(new_map)
         else:
@@ -64,7 +66,7 @@ def advance(line: str, statements: list[Statement], map_stack: list[Map], conver
         map_stack.append(new_map)
 
     elif line_type == "Command":
-        command = _parse_command_line(line, tools)
+        command = _parse_command_line(line, tools, files)
 
         # If we're inside a map, add to its body, otherwise add to main statements
         if map_stack:
@@ -109,14 +111,14 @@ def compile(lines: list[str]) -> Program:
     return Program(statements=statements)
 
 
-def _parse_map_line(line: str, tools: list[str]) -> Map:
+def _parse_map_line(line: str, tools: list[str], files: list[str]) -> Map:
     """Parse a map line into a Map AST node."""
     # Augment the prompt to request JSON list format
     augmented_prompt = require_json_list_prompt(line)
-    dimension_command = Command(prompt=augmented_prompt, tools=tools)
+    dimension_command = Command(prompt=augmented_prompt, tools=tools, files=files)
     return Map(dimension=dimension_command, body=Program(statements=[]))
 
 
-def _parse_command_line(line: str, tools: list[str]) -> Command:
+def _parse_command_line(line: str, tools: list[str], files: list[str]) -> Command:
     """Parse a command line into a Command AST node."""
-    return Command(prompt=line, tools=tools)
+    return Command(prompt=line, tools=tools, files=files)

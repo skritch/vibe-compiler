@@ -7,6 +7,7 @@ from src.prompts import RUNNER_SYSTEM_PROMPT, map_context_prompt, map_results_pr
 from src.schemas import GENERIC_LIST_SCHEMA
 
 from .compile import compile
+from .files import serialize_to_base64
 from .llm import LLM, Conversation
 from .program import Command, Map, Program
 from .tools import URL, Search
@@ -65,8 +66,29 @@ def _execute_command(command: Command, conversation: Conversation) -> str:
             tools.append(Search)
         else:
             raise ValueError(f"Unknown tool: {tool_name}")
+    
+    # Build message parts - start with text
+    parts: list[dict] = [{"text": command.prompt}]
+    
+    # Add file uploads if any
+    for filename in command.files:
+        try:
+            base64_data = serialize_to_base64(filename)
+            parts.append({
+                "inline_data": {
+                    "mime_type": "application/pdf", 
+                    "data": base64_data
+                }
+            })
+        except (FileNotFoundError, ValueError) as e:
+            print(f"Warning: Could not upload file {filename}: {e}")
+            continue
+    
+    # Create message in the format expected by conversation.chat
+    message = [{"parts": parts}]
+    
     # Execute the command
-    result = conversation.chat(command.prompt, tools=tools)
+    result = conversation.chat(message, tools=tools, )
     return result
 
 

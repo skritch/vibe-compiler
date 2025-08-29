@@ -140,9 +140,14 @@ class Conversation:
         self.system_prompt = system_prompt
         self.contents: list[dict] = []
 
-    def chat(self, message: str, **kwargs) -> str:
+    def chat(self, message: str | list[dict], **kwargs) -> str:
         # Add user message to contents
-        self.contents.append({"role": "user", "parts": [{"text": message}]})
+        if isinstance(message, str):
+            self.contents.append({"role": "user", "parts": [{"text": message}]})
+        else:
+            # message is already in the expected format (list of dicts with parts)
+            for msg_part in message:
+                self.contents.append({"role": "user", **msg_part})
 
         # Send full conversation history
         response = self.llm.chat(

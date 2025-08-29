@@ -24,7 +24,7 @@ The AST has three main statement types:
     
 3. **Command**: Represents single actions (e.g., "extract data", "look up", "fetch", "scrape")
    - Contains a prompt describing what to do
-   - Contains a list of tools needed (like URL fetchers, APIs, etc.)
+   - Contains a list of tools needed (like URL fetchers, APIs, etc.) and files to upload.
 
 You are skilled at recognizing these patterns in natural language and converting them into precise AST structures. 
 Your expertise in language understanding and compiler design makes you the perfect translator for these informal specifications 
@@ -62,6 +62,7 @@ Tool options:
 Return a JSON object with:
 - "type": the classification ("Map", "EndMap", or "Command")
 - "tools": array of names of any tool needed to execute this line of the program.
+- "files": array of filenames of any files which should be uploaded when executing this line.
 """
 
 

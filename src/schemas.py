@@ -4,6 +4,12 @@ TOOLS_SCHEMA = {
     "description": "List of unique tool names needed to execute this command",
 }
 
+FILES_SCHEMA = {
+    "type": "array",
+    "items": {"type": "string"},
+    "description": "List of filenames which should be uploaded when executing this command.",
+}
+
 STRING_LIST_SCHEMA = {
     "type": "array",
     "items": {"type": "string"},
@@ -28,6 +34,7 @@ def get_compile_schema(allowed_commands: list[str]):
                 "description": "The type of statement this line represents",
             },
             "tools": TOOLS_SCHEMA,
+            "files": FILES_SCHEMA
         },
         "required": ["type", "tools"],
     }

@@ -6,10 +6,12 @@ class Command(BaseModel):
     node_type: Literal["Command"] = "Command"
     prompt: str
     tools: list[str]
+    files: list[str] = []
 
     def __str__(self) -> str:
         tools_str = ", ".join(self.tools) if self.tools else "none"
-        return f"Command('{self.prompt}', tools=[{tools_str}])"
+        files_str = ", ".join(self.files) if self.files else "none"
+        return f"Command('{self.prompt}', tools=[{tools_str}], files=[{files_str}])"
 
 
 class Map(BaseModel):
