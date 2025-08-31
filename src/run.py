@@ -163,18 +163,3 @@ def _execute_map(map_stmt: Map, conversation: Conversation) -> str:
     conversation.contents.append({"role": "user", "parts": [{"text": results_summary}]})
     return results_summary
 
-
-def run_vibe(lines: list[str], llm: LLM | None = None) -> str:
-    """
-    Compile and run a vibe file in one step.
-
-    Args:
-        vibe_file: Path to the .vibe file
-        llm: Optional LLM instance (defaults to LLM.from_env())
-
-    Returns:
-        Final execution result as a string
-    """
-    
-    program = compile(lines)
-    return run_program(program, llm)

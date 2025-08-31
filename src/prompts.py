@@ -63,6 +63,11 @@ Return a JSON object with:
 - "type": the classification ("Map", "EndMap", or "Command")
 - "tools": array of names of any tool needed to execute this line of the program.
 - "files": array of filenames of any files which should be uploaded when executing this line.
+
+If a command inside a Map statement needs to use any tools to access the value that's mapped over,
+be sure to include the tool in the instruction for that command too. For example, if we're Mapping over
+a list of web pages, the commands inside the Map might need the "url_context" tool to access the page
+they're analyzing.
 """
 
 

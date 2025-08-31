@@ -46,8 +46,11 @@ Program([
 ])
 ```
 
-Or run:
+Or run (the kind of slightly-structured task that drove me to make this):
 ```
-uv run python cli.py run <input>
+uv run python cli.py run \
+  -s \
+  "for each url of a blog post on https://samkrit.ch/ ; open the url and proofread the post for typos" \
+  -o .data/proofread.txt
 ```
 

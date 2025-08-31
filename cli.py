@@ -5,26 +5,18 @@ import os
 from src.compile import compile
 from src.llm import set_log_file
 from src.program import Program
-from src.run import run_program, run_vibe
+from src.run import run_program
 
 
-def is_file_path(input_str: str) -> bool:
-    """Check if input string is a file path vs inline script."""
-    if input_str.endswith(('.vibe', '.vibec')):
-        return True
-    if os.path.exists(input_str):
-        return True
-    return False
-
-def create_log_file(input_name: str | None, mode: str) -> str:
+def create_log_file(input_name: str, mode: str) -> str:
     LOG_DIR = os.getenv('LOG_DIR', '.data/')
     
-    if input_name:
+    if '.' in input_name and os.path.exists(input_name):
         # Remove extension and get base name
         base_name = os.path.splitext(os.path.basename(input_name))[0]
-        filename = os.path.join(LOG_DIR, f"{base_name}-{mode}.txt")
+        filename = os.path.join(LOG_DIR, f"{base_name}-{mode}.log")
     else:
-        filename = os.path.join(LOG_DIR, f"{mode}.txt")
+        filename = os.path.join(LOG_DIR, f"script.log")
     
     # Ensure directory exists
     os.makedirs(os.path.dirname(filename), exist_ok=True)
@@ -32,61 +24,44 @@ def create_log_file(input_name: str | None, mode: str) -> str:
     set_log_file(filename)
     return filename
 
+def handle_input(input_arg: str, is_script: bool):
+    if is_script:
+        return [line.strip() for line in input_arg.split(";") if line.strip()]
+    
+    if not os.path.exists(input_arg):
+        raise ValueError(f"Error: File '{input_arg}' not found")
+
+    with open(input_arg) as f:
+        lines = f.readlines()
+    return lines
+
 def parse_inline_script(script: str) -> list[str]:
     """Convert semicolon-delimited script to multiline format."""
     return [line.strip() for line in script.split(";") if line.strip()]
 
 
-def compile_mode(input_arg: str, pretty: bool = False):
+def compile_mode(input_arg: str, is_script: bool, pretty: bool = False):
     """Compile a vibe program and print the AST."""
-    if is_file_path(input_arg):
-        # Input is a file path
-        if not os.path.exists(input_arg):
-            raise ValueError(f"Error: File '{input_arg}' not found")
+
+    program = compile(handle_input(input_arg, is_script))
+    output = str(program) if pretty else program.model_dump_json(indent=2)
         
-        with open(input_arg) as f:
-            lines = f.readlines()
-        program = compile(lines)
-        output = str(program) if pretty else program.model_dump_json(indent=2)
-        
-        
-    else:
-        # Input is an inline script
-        lines = parse_inline_script(input_arg)
-        program = compile(lines)
-        output = str(program) if pretty else program.model_dump_json(indent=2)
-    
     if pretty:
         output = str(output)
     return output
 
 
-def run_mode(input_arg: str, compiled: bool = False):
+def run_mode(input_arg: str, is_script: bool, compiled: bool = False):
     """Run a vibe program and print the result."""
-    if is_file_path(input_arg):
-        if not os.path.exists(input_arg):
-            raise ValueError(f"Error: File '{input_arg}' not found")
 
-        if compiled:
-            # Load compiled program from JSON file
-            with open(input_arg, 'r') as f:
-                json_content = f.read()
-            
-            # Parse JSON back to Program object using Pydantic
-            program = Program.model_validate_json(json_content)
-            result = run_program(program)
-        else:
-            with open(input_arg) as f:
-                lines = f.readlines()
-            result = run_vibe(lines)
+    if compiled:
+        with open(input_arg, 'r') as f:
+            json_content = f.read()
+        program = Program.model_validate_json(json_content)
     else:
-        # Input is an inline script
-        lines = parse_inline_script(input_arg)
-        if compiled:
-            raise ValueError("Cannot use compiled mode (-c) with inline scripts")
-        
-        result = run_vibe(lines)
-        
+        program = compile(handle_input(input_arg, is_script))
+    
+    result = run_program(program)
     return result
 
 
@@ -100,8 +75,8 @@ Examples:
   python cli.py compile vibes/example.vibe -o vibes/examples.vibec
   python cli.py run vibes/example.vibe
   python cli.py run -c vibes/example.vibec
-  python cli.py compile "for each item in list; process item; combine results"
-  python cli.py run "for each item in list; process item; combine results"
+  python cli.py compile -s "for each item in list; process item; combine results"
+  python cli.py run -s "for each item in list; process item; combine results"
         """,
     )
 
@@ -120,6 +95,12 @@ Examples:
         action="store_true",
         help="Run mode only: treat input as a compiled .vibec file (JSON format)"
     )
+    
+    parser.add_argument(
+        "-s", "--script",
+        action="store_true",
+        help='Interpret "input" as a script instead of a filename'
+    )
 
     parser.add_argument(
         "-o", "--output",
@@ -135,7 +116,10 @@ Examples:
     args = parser.parse_args()
 
     # Enable debug logging if requested
-    log_file = create_log_file(args.input, args.mode)
+    log_file = create_log_file(
+        args.input, 
+        args.mode
+    )
     print(f"Logging conversation to {log_file}")
 
     # Validate arguments
@@ -143,16 +127,21 @@ Examples:
         print("Error: -c/--compiled flag can only be used with 'run' mode")
         return 1
     
+    if args.compiled and args.script:
+        print("Error: -c/--compiled flag cannot be used with -s/--script flag")
+        return 1
+    
     if args.pretty and args.mode != "compile":
         print("Error: --pretty flag can only be used with 'compile' mode")
         return 1
 
     if args.mode == "compile":
-        output = compile_mode(args.input, pretty=args.pretty)
+        output = compile_mode(args.input, is_script=args.script, pretty=args.pretty)
     elif args.mode == "run":
-        output = run_mode(args.input, args.compiled)
+        output = run_mode(args.input, is_script=args.script, compiled=args.compiled)
     
     if args.output:
+        os.makedirs(os.path.dirname(args.output), exist_ok=True)
         with open(args.output, 'w') as f:
             f.write(output)
     else:
