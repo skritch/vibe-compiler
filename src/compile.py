@@ -1,7 +1,7 @@
-from collections.abc import Iterable
-from typing import Annotated
+from collections.abc import Sequence
+from typing import Literal
 
-from pydantic import AfterValidator, BaseModel
+from pydantic import BaseModel
 from tqdm import tqdm
 
 from src.llm import LLM, Conversation
@@ -16,17 +16,13 @@ from src.schemas import GENERIC_LIST_SCHEMA, get_compile_schema
 from src.tools import TOOLS_BY_NAME
 
 
-def assert_in(x, allowed: Iterable):
-    assert x in allowed, f"{x} not in {allowed}"
-    return x
-
 class CompileResponse(BaseModel):
-    type: Annotated[str, AfterValidator(lambda t:  assert_in(t, ["Map", "EndMap", "Command"]))]
-    tools: Annotated[list[str], AfterValidator(lambda ts: [assert_in(t, TOOLS_BY_NAME) for t in ts])]
+    type: Literal["Map", "EndMap", "Command"]
+    tools: list[str]
     files: list[str] = []
 
 
-def parse_tools(tools: list[str]):
+def parse_tools(tools: Sequence[str]):
     # TODO: parse tool calls
     return [TOOLS_BY_NAME[t] for t in tools]
 
@@ -87,9 +83,10 @@ def advance(
 
     schema = get_compile_schema(allowed_commands)
     classification_response = conversation.chat(
-        classification_prompt(line, last_map), response_schema=schema.schema_
+        classification_prompt(line, last_map), response_schema=schema.jsonschema
     )
 
+    # Need to handle errors here properly
     compiled = CompileResponse.model_validate_json(classification_response)
 
     if compiled.type == "EndMap":
@@ -100,7 +97,7 @@ def advance(
             # Try to correct the LLM's classification
             retry_response = conversation.chat(
                 retry_classification_prompt(line),
-                response_schema=schema.schema_,
+                response_schema=schema.jsonschema,
             )
             compiled = CompileResponse.model_validate_json(retry_response)
 

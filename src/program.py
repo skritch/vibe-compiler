@@ -1,5 +1,4 @@
 from collections.abc import Sequence
-from typing import Literal
 
 from pydantic import BaseModel, model_validator
 
@@ -8,7 +7,6 @@ from src.tools import Tool
 
 
 class Command(BaseModel):
-    node_type: Literal["Command"] = "Command"
     prompt: str
     tools: Sequence[Tool] = []
     files: list[str] = []
@@ -32,7 +30,6 @@ class Command(BaseModel):
 
 
 class Map(BaseModel):
-    node_type: Literal["Map"] = "Map"
     dimension: Command
     body: "Program"
 

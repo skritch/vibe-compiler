@@ -57,9 +57,16 @@ def _execute_command(command: Command, conversation: Conversation) -> str:
     """Execute a command statement."""
 
     for filename in command.files:
-        conversation.append_pdf(filename)
+        if filename.endswith('.pdf'):
+            conversation.append_binary_file(filename)
+        else:
+            conversation.append_text_file(filename)
 
-    result = conversation.chat(command.prompt, tools=command.tools)
+
+    result = conversation.chat(
+        command.prompt, 
+        tools=command.tools
+    )
     return result
 
 
@@ -103,7 +110,7 @@ def _execute_map(map_stmt: Map, conversation: Conversation) -> str:
     if items_list is None:
         items_list = conversation.chat(
             retry_json_list_prompt(map_stmt.dimension.prompt, list_response),
-            response_schema=GENERIC_LIST_SCHEMA.schema_,
+            response_schema=GENERIC_LIST_SCHEMA.jsonschema,
         )
         if not isinstance(items_list, list):
             raise RuntimeError(f"Didn't receive a list for {map_stmt}")
@@ -116,7 +123,7 @@ def _execute_map(map_stmt: Map, conversation: Conversation) -> str:
 
         # Add the context message for this specific item
         map_prompt = map_context_prompt(item)
-        branch_conversation.append_text(map_prompt, "user")
+        branch_conversation.append_message(map_prompt, "user")
 
         # Execute the map's body program with the forked conversation
         branch_result = _execute_program(map_stmt.body, branch_conversation)
@@ -125,6 +132,6 @@ def _execute_map(map_stmt: Map, conversation: Conversation) -> str:
     results_summary = map_results_prompt(branch_results)
 
     # Add the combined results to the original conversation
-    conversation.append_text(results_summary, "user")
+    conversation.append_message(results_summary, "user")
     return results_summary
 

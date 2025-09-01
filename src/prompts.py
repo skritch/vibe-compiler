@@ -1,3 +1,6 @@
+
+# COMPILATION STAGE PROMPTS
+
 COMPILER_SYSTEM_PROMPT = """
 You are an expert compiler and natural language processing specialist. You excel at translating English-language code sketches into precise, executable program structures.
 
@@ -50,33 +53,25 @@ Classification rules:
 Tool options:
 - "url_context": for accessing web pages, scraping content from URLs
 - "search": for general web search, finding information
+- "read_file": for reading the contents of a file on the user's computer and attaching them to the conversation
 
 Return a JSON object with:
 - "type": the classification ("Map", "EndMap", or "Command")
 - "tools": array of names of any tool needed to execute this line of the program.
-- "files": array of filenames of any files which should be uploaded when executing this line.
+- "files": array of filenames of any files which should be added to the conversation when executing this line.
 
-If a command inside a Map statement needs to use any tools to access the value that's mapped over,
-be sure to include the tool in the instruction for that command too. For example, if we're Mapping over
-a list of web pages, the commands inside the Map might need the "url_context" tool to access the page
-they're analyzing.
+
+A couple of notes about tools:
+- If a command inside a Map statement needs to use any tools to access the value that's being mapped over, be sure to include the tool in the instruction for that command too. For example, if we're Mapping over a list of web pages, the commands inside the Map might need the "url_context" tool to access the page they're analyzing.
+- How to know when to include `files` in your compile step vs. the tool `read_file`: 
+  - "files" is for files whose names are known at "compile time". We already know we'll need the file at runtime, so we can just add the instruction to upload it to the compiled AST node
+  - "read_file" is for files whose names we don't know at compile time. The runtime LLM will figure out the name of the file dynamically from the conversation history.
 """
 
-
-def tools_selection_prompt(line: str, available_tools: list[str]) -> str:
-    return f"""
-For this command line: "{line}"
-
-Which tools are needed? Choose from: {available_tools}
-
-- url_context: for accessing web pages, scraping content from URLs
-- search: for general web search, finding information
-
-Return only a JSON array of tool names.
-
-Example: ["url_context"]
-"""
-
+# Those "notes about tools" are probably error prone. Find a better approach.
+# - automatically use the same tool for the duration of the map?
+# - the goal is to be able to say "for each link on <url>..." and then have the cmds inside the map access those links without any trouble
+# 
 
 def retry_classification_prompt(line: str) -> str:
     return f"""
@@ -91,33 +86,8 @@ Please reclassify this line correctly.
 """
 
 
-def require_json_list_prompt(prompt: str) -> str:
-    return f"""
-Please generate a JSON array of the items to process from the following instruction:
 
-{prompt}
-"""
-
-
-def retry_json_list_prompt(query: str, response: str):
-    return (
-        f"The following query was sent to an LLM: \n\n{query}"
-        + "Please extract the results from its response as a json list. Its response was:\n\n {response}"
-    )
-
-
-def map_context_prompt(item) -> str:
-    return f"""You're processing only a single branch of the above list. The current value is:
-
-{item}"""
-
-
-def map_results_prompt(branch_results: list[tuple]) -> str:
-    results_summary = "Here are the results of the previous instruction:\n"
-    for item, result in branch_results:
-        results_summary += f"{item}: {result}\n"
-    return results_summary
-
+# RUNTIME PROMPTS
 
 RUNNER_SYSTEM_PROMPT = """
 You are an expert runner of loosely-defined program-like procedures.
@@ -133,3 +103,41 @@ Key principles:
 
 You excel at following procedural instructions and completing data processing tasks with precision and reliability.
 """.strip()
+
+
+def require_json_list_prompt(prompt: str) -> str:
+    return f"""
+Please generate a JSON array of the items to process from the following instruction:
+
+{prompt}
+"""
+
+
+def retry_json_list_prompt(query: str, response: str):
+    return f"""The following query was sent to an LLM: 
+
+{query}
+
+Please extract the results from its response as a JSON list. Its response was:
+
+{response}
+"""
+
+
+def map_context_prompt(item) -> str:
+    return f"""You're processing only a single branch of the above list. The current value is:
+
+{item}"""
+
+
+def map_results_prompt(branch_results: list[tuple]) -> str:
+    results_summary = "Here are the results of the previous instruction:\n"
+    for item, result in branch_results:
+        results_summary += f"{item}: {result}\n"
+    return results_summary
+
+def text_file_prompt(filename: str, contents: str) -> str:
+    return f"""The following are the full contents of the file {filename}:
+
+{contents}
+"""

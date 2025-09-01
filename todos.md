@@ -51,10 +51,11 @@ robustness
   
 
 
-towards local file tool and python API:
-- need these to be part of the program:
-  - jsonschema on commands (lists for map)
-  - files to upload 
-    - are local files = pdf uploads? probably not
 
+current tasks:
+- [x] jsonschema on commands (lists for map)
+  - had to make tools and schemas into pydantic objects of their own
+- tool calls
+- files to upload 
+  - are local files = pdf uploads? probably not
 

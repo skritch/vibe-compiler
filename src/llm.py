@@ -1,9 +1,10 @@
 import os
 import time
-from typing import Literal
+from typing import Literal, Sequence
 
 import requests
 
+from src.prompts import text_file_prompt
 from src.providers.gemini import parse_retry_delay
 
 from .tools import Tool
@@ -48,7 +49,7 @@ class LLM:
         self,
         message: str | list[dict],
         system_instruction: str | None = None,
-        tools: list[Tool] | None = None,
+        tools: Sequence[Tool] | None = None,
         model: str | None = None,
         response_schema: dict | None = None,
     ) -> str:
@@ -72,7 +73,7 @@ class LLM:
             payload["system_instruction"] = {"parts": [{"text": system_instruction}]}
 
         if tools:
-            payload["tools"] = [t.body for t in tools]
+            payload["tools"] = [t.to_dict() for t in tools]
 
         if response_schema:
             payload["generationConfig"] = {
@@ -141,12 +142,12 @@ class Conversation:
     def chat(
         self,
         message: str,
-        tools: list[Tool] | None = None,
+        tools: Sequence[Tool] | None = None,
         response_schema: dict | None = None,
     ) -> str:
         # I suppose we could accept a different model or system instruction here, but.
 
-        self.append_text(message, "user")
+        self.append_message(message, "user")
 
         # Send full conversation history
         response = self.llm.chat(
@@ -157,21 +158,31 @@ class Conversation:
         )
 
         # Add assistant response to contents
-        self.append_text(response, "model")
+        self.append_message(response, "model")
 
         return response
 
-    def append_text(self, text: str, role: Literal["user"] | Literal["model"]):
+    def append_message(self, text: str, role: Literal["user", "model"]):
         """
         Append some text to the conversation without calling the LLM.
         """
         self.conversation.append({"role": role, "parts": [{"text": text}]})
 
-    def append_pdf(self, filename):
-        """
-        Errors if the file is greater than 20MB (Gemini max size for base64 uploads.)
+    def append_text_file(self, filename: str):
+        # Check if file exists
+        if not os.path.exists(filename):
+            raise FileNotFoundError(f"File not found: {filename}")
 
-        Note: Gemini intends for this to be used for PDFs, but we won't enforce that.
+        with open(filename, "r") as f:
+            file_content = f.read()
+        
+        self.append_message(text_file_prompt(filename, file_content), "user")
+
+    def append_binary_file(self, filename):
+        """
+        Upload a binary file, like a PDF, as `inline_data`.
+
+        Errors if the file is greater than 20MB (Gemini max size for base64 uploads.)
         """
         import base64
 
@@ -188,8 +199,8 @@ class Conversation:
             )
 
         # Read and encode the file
-        with open(filename, "rb") as file:
-            file_content = file.read()
+        with open(filename, "rb") as f:
+            file_content = f.read()
             base64_content = base64.b64encode(file_content).decode("utf-8")
 
         self.conversation.append(

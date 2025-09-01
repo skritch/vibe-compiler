@@ -118,7 +118,6 @@ Examples:
         args.input,
         args.mode
     )
-    print(f"Logging conversation to {log_file}")
 
     # Validate arguments
     if args.compiled and args.mode != "run":
