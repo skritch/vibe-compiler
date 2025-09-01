@@ -8,12 +8,8 @@ The AST has three main statement types:
 1. **Map**: Represents iteration/loops over data (e.g., "for each item", "iterate over", "process all")
    - Contains a dimension command that defines what to iterate over
    - Will be follow by a body program with statements to execute for each item
-   - Should ONLY contain lines that pertain to the data being looped over. If a line refers to ALL of the
-     the data being looped over, the map has ended. Same if the statement initiates a loop over a different 
-     kind of data.
-   - A new map can start while inside another map. For example, you might loop over a set of search results, and
-     then loop over all the links on each page in the search results. An inner map will always refer to the 
-     dimension of the outer map, otherwise, the two should be separated by an "EndMap" (below).
+   - Should ONLY contain lines that pertain to the data being looped over. If a line refers to ALL of the the data being looped over, the map has ended. Same if the statement initiates a loop over a different kind of data.
+   - A new map can start while inside another map. For example, you might loop over a set of search results, and then loop over all the links on each page in the search results. An inner map will always refer to the dimension of the outer map, otherwise, the two should be separated by an "EndMap" (below).
 
 2. **EndMap**" Represents the end of the most recent ongoing "map" statement.
    - Any statement which no longer needs to be carried out *once per element* of the "map" statement
@@ -21,29 +17,25 @@ The AST has three main statement types:
      - aggregation/combination operations (e.g., "combine results", "merge into", "aggregate", "sort by"),
      - statements which select a subset of the results (e.g. "pick the best", "choose a few of...")
      - new map statements which don't include a reference to the original statement.
-    
+
 3. **Command**: Represents single actions (e.g., "extract data", "look up", "fetch", "scrape")
    - Contains a prompt describing what to do
    - Contains a list of tools needed (like URL fetchers, APIs, etc.) and files to upload.
 
-You are skilled at recognizing these patterns in natural language and converting them into precise AST structures. 
-Your expertise in language understanding and compiler design makes you the perfect translator for these informal specifications 
-into executable code structures.
+You are skilled at recognizing these patterns in natural language and converting them into precise AST structures. Your expertise in language understanding and compiler design makes you the perfect translator for these informal specifications into executable code structures.
 """.strip()
 
 
 def classification_prompt(line: str, current_map: str | None) -> str:
-
     if current_map:
         current_map_prompt = f"""
 - "EndMap" = the end of the most recent "Map". (Combine, merge, an unrelated command, or a new map which is not related to the elements of the first one. etc.)
   The most recent "Map" instruction was: {current_map}
 """
     else:
-        current_map_prompt = f"""
-There is currently no activte "Map", so "EndMap" is not an option.        
+        current_map_prompt = """
+There is currently no active "Map", so "EndMap" is not an option.
 """
-
 
     return f"""
 Analyze this line and classify it, also determining what tools are needed.
@@ -69,7 +61,6 @@ be sure to include the tool in the instruction for that command too. For example
 a list of web pages, the commands inside the Map might need the "url_context" tool to access the page
 they're analyzing.
 """
-
 
 
 def tools_selection_prompt(line: str, available_tools: list[str]) -> str:
@@ -109,8 +100,11 @@ Please generate a JSON array of the items to process from the following instruct
 
 
 def retry_json_list_prompt(query: str, response: str):
-    return f"The following query was sent to an LLM: \n\n{query}" + \
-    "Please extract the results from its response as a json list. Its response was:\n\n {response}"
+    return (
+        f"The following query was sent to an LLM: \n\n{query}"
+        + "Please extract the results from its response as a json list. Its response was:\n\n {response}"
+    )
+
 
 def map_context_prompt(item) -> str:
     return f"""You're processing only a single branch of the above list. The current value is:

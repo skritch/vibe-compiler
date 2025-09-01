@@ -36,18 +36,25 @@ features
   - does the compile LLM need to ask for it...? yes, sure, later we might want one step to download and another to upload.
   - but that download would be a tool call.
 - support writing results to a file (instead of merely viewing in the conversation)
+- local file tool
+- python APi
 
-Overall next step is: get organized about input/output files.
-- default output should be named like the input (vibe -> vibec, vibec -> txt)
-- print various retrying progress as we go
 
 
 robustness
-- add some "error handling" (i.e. pester the AI to retry once. Possibly allow failures inside maps and just return the failed result.)
-- parallelize a little bit
+- add some "error handling"
+  i.e. pester the AI to retry once. Possibly allow failures inside maps and just return the failed result.
 - I probably need to log retries and the like somewhere too
 - when running from .vibe, write the .vibec out as a checkpoint
-- Log between "running" and "compiling"
-- We should log every line of run, actually.
+- Log "running" and "compiling", other stuff.
 - some way to clear conversation state (e.g. remove a file from the history) and start fresh?
   
+
+
+towards local file tool and python API:
+- need these to be part of the program:
+  - jsonschema on commands (lists for map)
+  - files to upload 
+    - are local files = pdf uploads? probably not
+
+
